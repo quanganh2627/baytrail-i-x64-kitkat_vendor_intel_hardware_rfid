@@ -113,7 +113,13 @@ public:
         int ret = reply.readInt32();
         if (ret > 0) {
             const char *result = (const char *)reply.readInplace(ret);
-            memcpy((char *) readBuf, result, ret);
+            if (result)
+                memcpy((char *)readBuf, result, ret);
+            else {
+                ALOGE("Bp transact File_Read length is 0, failed.\n");
+                memset(readBuf, 0, length);
+                ret = 0;
+            }
         } else {
             memset(readBuf, 0, length);
         }
@@ -167,7 +173,7 @@ status_t BnMonzax::onTransact(
             break;
         case FILE_CLOSE:
             {
-                ALOGI("BnMonzax: onTransact: FILE_OPEN"
+                ALOGI("BnMonzax: onTransact: FILE_CLOSE"
                     "client to access MonzaxService from uid=%d pid=%d code: %d",
                     uid, pid, code);
                 CHECK_INTERFACE(IMonzax, data, reply);
@@ -212,9 +218,10 @@ status_t BnMonzax::onTransact(
                 }
                 free(pReadBuf);
                 pReadBuf = NULL;
+                return NO_ERROR;
 err_read:
                 ALOGE("onTransact File_Read ,ret =%d out\n",  (int)ret);
-                return NO_ERROR;
+                return ret;
             }
             break;
         case FILE_WRITE:
@@ -232,7 +239,13 @@ err_read:
                 }
                 if(length > 0){
                     const char *input = (const char *) data.readInplace(length);
-                    memcpy(pWriteBuf, input, length);
+                    if (input)
+                        memcpy(pWriteBuf, input, length);
+                    else {
+                        ALOGE("onTransact File_Write length is 0, failed.\n");
+                        memset(pWriteBuf, 0, length);
+                        length = 0;
+                    }
                 } else
                     memset(pWriteBuf, 0, length);
 
@@ -240,9 +253,10 @@ err_read:
                 reply->writeInt32(ret);
                 free(pWriteBuf);
                 pWriteBuf = NULL;
+                return NO_ERROR;
 err_write:
                 ALOGE("onTransact File_Write ,ret =%d out\n",  (int)ret);
-                return NO_ERROR;
+                return ret;
             }
             break;
         default:
